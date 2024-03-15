@@ -1,6 +1,7 @@
-use crate::color::Color;
-
+use crate::prelude::*;
+use glam::Vec3;
 use image::{ImageResult, RgbImage};
+use std::ops::{Div, Mul, RangeInclusive};
 
 pub struct Canvas {
     width: u32,
@@ -38,30 +39,28 @@ impl Canvas {
         self.image.save(path)
     }
 
-    pub fn min_x(&self) -> i32 {
-        -((self.width / 2) as i32)
-    }
-
-    pub fn max_x(&self) -> i32 {
+    /// Range of valid x indices.
+    fn x_range(&self) -> RangeInclusive<i32> {
         let half_width = (self.width / 2) as i32;
-        if self.width % 2 == 0 {
+        let min = -((self.width / 2) as i32);
+        let max = if self.width % 2 == 0 {
             half_width - 1
         } else {
             half_width
-        }
+        };
+        min..=max
     }
 
-    pub fn min_y(&self) -> i32 {
-        let half_height = (self.width / 2) as i32;
-        if self.height % 2 == 0 {
+    /// Range of valid y indices.
+    fn y_range(&self) -> RangeInclusive<i32> {
+        let half_height = (self.height / 2) as i32;
+        let min = if self.height % 2 == 0 {
             -half_height + 1
         } else {
             -half_height
-        }
-    }
-
-    pub fn max_y(&self) -> i32 {
-        (self.width / 2) as i32
+        };
+        let max = (self.height / 2) as i32;
+        min..=max
     }
 
     /// Converts canvas coordinate to screen coordinate.
@@ -69,5 +68,28 @@ impl Canvas {
         let half_width = (self.width / 2) as i32;
         let half_height = (self.height / 2) as i32;
         ((half_width + x) as u32, (half_height - y) as u32)
+    }
+
+    /// Converts canvas coordinate, 2D, to space coordinate
+    /// of the point on the projection plain, 3D.
+    ///
+    /// For the time being view's z coordinate is 1.0, distance between
+    /// `Camera.position` and the projection plain.
+    pub fn to_view(&self, camera: &Camera, x: i32, y: i32) -> Vec3 {
+        Vec3::new(
+            (x as f32).mul(camera.view_width().div(self.width as f32)),
+            (y as f32).mul(camera.view_height().div(self.height as f32)),
+            1.0,
+        )
+    }
+
+    pub fn render(&mut self, scene: &Scene, camera: &Camera) {
+        for x in self.x_range() {
+            for y in self.y_range() {
+                let p = self.to_view(camera, x, y);
+                let color = scene.trace(camera, p, 1.0, f32::INFINITY);
+                self.put_pixel(x, y, color);
+            }
+        }
     }
 }

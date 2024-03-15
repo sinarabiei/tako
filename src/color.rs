@@ -1,8 +1,7 @@
+use image::Rgb;
 use std::ops::{Add, Mul};
 
-use image::Rgb;
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Color {
     red: u8,
     green: u8,
@@ -10,6 +9,12 @@ pub struct Color {
 }
 
 impl Color {
+    pub const BACKGROUND_COLOR: Color = Color {
+        red: 255,
+        green: 255,
+        blue: 255,
+    };
+
     pub fn new(red: u8, green: u8, blue: u8) -> Self {
         Self { red, green, blue }
     }
