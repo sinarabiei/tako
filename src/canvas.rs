@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{camera::Camera, color::Color, scene::Scene};
 use glam::Vec3;
 use image::{ImageResult, RgbImage};
 use std::ops::{Div, Mul, RangeInclusive};
@@ -77,8 +77,8 @@ impl Canvas {
     /// `Camera.position` and the projection plain.
     pub fn to_view(&self, camera: &Camera, x: i32, y: i32) -> Vec3 {
         Vec3::new(
-            (x as f32).mul(camera.view_width().div(self.width as f32)),
-            (y as f32).mul(camera.view_height().div(self.height as f32)),
+            (x as f32).mul(camera.width.div(self.width as f32)),
+            (y as f32).mul(camera.height.div(self.height as f32)),
             1.0,
         )
     }
@@ -86,8 +86,8 @@ impl Canvas {
     pub fn render(&mut self, scene: &Scene, camera: &Camera) {
         for x in self.x_range() {
             for y in self.y_range() {
-                let p = self.to_view(camera, x, y);
-                let color = scene.trace(camera, p, 1.0, f32::INFINITY);
+                let view_pt = self.to_view(camera, x, y);
+                let color = scene.trace(camera, view_pt, 1.0, f32::INFINITY);
                 self.put_pixel(x, y, color);
             }
         }
