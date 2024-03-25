@@ -10,9 +10,9 @@ pub struct Color {
 
 impl Color {
     pub const BACKGROUND_COLOR: Color = Color {
-        red: 255,
-        green: 255,
-        blue: 255,
+        red: 0,
+        green: 0,
+        blue: 0,
     };
 
     pub fn new(red: u8, green: u8, blue: u8) -> Self {
