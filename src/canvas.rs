@@ -86,8 +86,7 @@ impl Canvas {
     pub fn render(&mut self, scene: &Scene, camera: &Camera) {
         for x in self.x_range() {
             for y in self.y_range() {
-                let point = self.to_view(camera, x, y);
-                let direction = point - camera.position;
+                let direction = camera.rotation * self.to_view(camera, x, y);
                 let color = scene.trace(camera.position, direction, 1.0, f32::INFINITY, 3);
                 self.put_pixel(x, y, color);
             }

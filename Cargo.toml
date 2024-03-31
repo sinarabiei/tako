@@ -16,5 +16,5 @@ opt-level = 1
 opt-level = 3
 
 [[example]]
-name = "shadows_and_reflections"
-path = "examples/shadows_and_reflections.rs"
+name = "arbitrary_camera_positioning"
+path = "examples/arbitrary_camera_positioning.rs"

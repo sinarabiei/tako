@@ -1,8 +1,14 @@
-use glam::Vec3;
+use glam::{Mat3, Vec3};
+use std::f32::consts::PI;
 use tako::prelude::*;
 
 fn main() {
-    let camera = Camera::default();
+    let camera = Camera::new(
+        Vec3::new(-1.0, 1.0, -3.0),
+        Mat3::from_rotation_x(PI / 19.0)
+            * Mat3::from_rotation_y(PI / 29.0)
+            * Mat3::from_rotation_z(PI / 13.0),
+    );
     let scene = Scene::new(
         vec![
             Sphere::new(
