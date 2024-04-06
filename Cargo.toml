@@ -16,5 +16,5 @@ opt-level = 1
 opt-level = 3
 
 [[example]]
-name = "arbitrary_camera_positioning"
-path = "examples/arbitrary_camera_positioning.rs"
+name = "parallelization"
+path = "examples/parallelization.rs"

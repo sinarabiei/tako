@@ -1,5 +1,5 @@
 use glam::{Mat3, Vec3};
-use std::f32::consts::PI;
+use std::{f32::consts::PI, sync::Arc};
 use tako::prelude::*;
 
 fn main() {
@@ -9,7 +9,7 @@ fn main() {
             * Mat3::from_rotation_y(PI / 29.0)
             * Mat3::from_rotation_z(PI / 13.0),
     );
-    let scene = Scene::new(
+    let scene = Arc::new(Scene::new(
         vec![
             Sphere::new(
                 Vec3::new(0.0, -1.0, 3.0),
@@ -45,9 +45,10 @@ fn main() {
             Light::point(0.6, Vec3::new(2.0, 1.0, 0.0)),
             Light::directional(0.2, Vec3::new(1.0, 4.0, 4.0)),
         ],
-    );
-    let mut canvas = Canvas::new(600, 600);
-    canvas.render(&scene, &camera);
+    ));
+    let mut canvas = Canvas::new(6000, 6000);
+    // canvas.render(&scene, &camera);
+    canvas.render_parallel(Arc::clone(&scene), &camera);
     canvas.save("image.png").unwrap();
     println!("   Raytracing finished.");
     println!("   See the result in \"image.png\" file.")
