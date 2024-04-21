@@ -16,5 +16,5 @@ opt-level = 1
 opt-level = 3
 
 [[example]]
-name = "filled_triangles"
-path = "examples/filled_triangles.rs"
+name = "shaded_triangles"
+path = "examples/shaded_triangles.rs"
