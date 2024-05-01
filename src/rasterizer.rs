@@ -1,6 +1,5 @@
-use glam::Vec2;
-
-use crate::{canvas::Canvas, color::Color};
+use crate::{camera::Camera, canvas::Canvas, color::Color};
+use glam::{Vec2, Vec3};
 
 pub struct Vertex {
     pos: Vec2,
@@ -169,4 +168,32 @@ pub fn draw_shaded_triangle(canvas: &mut Canvas, a: Vertex, b: Vertex, c: Vertex
             canvas.put_pixel(x, y, shaded_color);
         }
     }
+}
+
+pub fn view_to_canvas(
+    canvas_width: u32,
+    canvas_height: u32,
+    camera: &Camera,
+    x: f32,
+    y: f32,
+) -> Vec2 {
+    Vec2::new(
+        x * canvas_width as f32 / camera.width,
+        y * canvas_height as f32 / camera.height,
+    )
+}
+
+pub fn project_vertex(
+    canvas_width: u32,
+    canvas_height: u32,
+    camera: &Camera,
+    vertex: Vec3,
+) -> Vec2 {
+    view_to_canvas(
+        canvas_width,
+        canvas_height,
+        camera,
+        vertex.x * camera.d / vertex.z,
+        vertex.y * camera.d / vertex.z,
+    )
 }

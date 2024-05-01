@@ -16,5 +16,5 @@ opt-level = 1
 opt-level = 3
 
 [[example]]
-name = "shaded_triangles"
-path = "examples/shaded_triangles.rs"
+name = "perspective_projection"
+path = "examples/perspective_projection.rs"

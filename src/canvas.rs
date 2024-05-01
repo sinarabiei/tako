@@ -28,8 +28,16 @@ impl Canvas {
 
     /// Converts canvas to screen coordinate automatically.
     pub fn put_pixel(&mut self, x: i32, y: i32, color: Color) {
-        let (screen_x, screen_y) = self.to_screen(x, y);
-        self.image.put_pixel(screen_x, screen_y, color.into());
+        if x < *self.x_range().start()
+            || x > *self.x_range().end()
+            || y < *self.y_range().start()
+            || y > *self.y_range().end()
+        {
+            eprintln!("index out of bound");
+        } else {
+            let (screen_x, screen_y) = self.to_screen(x, y);
+            self.image.put_pixel(screen_x, screen_y, color.into());
+        }
     }
 
     /// Saves the canvas to a file at the path specified.
@@ -72,14 +80,11 @@ impl Canvas {
 
     /// Converts canvas coordinate, 2D, to space coordinate
     /// of the point on the projection plain, 3D.
-    ///
-    /// For the time being view's z coordinate is 1.0, distance between
-    /// `Camera.position` and the projection plain.
     pub fn to_view(&self, camera: &Camera, x: i32, y: i32) -> Vec3 {
         Vec3::new(
             (x as f32).mul(camera.width.div(self.width as f32)),
             (y as f32).mul(camera.height.div(self.height as f32)),
-            1.0,
+            camera.d,
         )
     }
 
@@ -88,7 +93,7 @@ impl Canvas {
             for y in self.y_range() {
                 let point = self.to_view(camera, x, y);
                 let direction = point - camera.position;
-                let color = scene.trace(camera.position, direction, 1.0, f32::INFINITY, 3);
+                let color = scene.trace(camera.position, direction, camera.d, f32::INFINITY, 3);
                 self.put_pixel(x, y, color);
             }
         }
