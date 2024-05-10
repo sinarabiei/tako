@@ -1,5 +1,5 @@
-use crate::{camera::Camera, canvas::Canvas, color::Color};
-use glam::{Vec2, Vec3};
+use crate::{canvas::Canvas, color::Color};
+use glam::{Mat4, Vec2, Vec3};
 
 pub struct Vertex {
     pos: Vec2,
@@ -170,6 +170,28 @@ pub fn draw_shaded_triangle(canvas: &mut Canvas, a: Vertex, b: Vertex, c: Vertex
     }
 }
 
+pub struct Camera {
+    pub position: Vec3,
+    pub orientation: Mat4,
+    pub width: f32,
+    pub height: f32,
+    pub d: f32,
+}
+
+impl Camera {
+    pub fn new(position: Vec3, orientation: Mat4) -> Self {
+        // Right-handed system
+        let orientation = orientation.transpose();
+        Self {
+            position,
+            orientation,
+            width: 1.0,
+            height: 1.0,
+            d: 1.0,
+        }
+    }
+}
+
 pub fn view_to_canvas(
     canvas_width: u32,
     canvas_height: u32,
@@ -196,4 +218,113 @@ pub fn project_vertex(
         vertex.x * camera.d / vertex.z,
         vertex.y * camera.d / vertex.z,
     )
+}
+
+pub struct Triangle {
+    pub indices: [usize; 3],
+    pub color: Color,
+}
+
+impl Triangle {
+    pub fn new(indices: [usize; 3], color: Color) -> Self {
+        Self { indices, color }
+    }
+}
+
+pub fn render_object(
+    canvas: &mut Canvas,
+    camera: &Camera,
+    vertices: &[Vec3],
+    triangles: &[Triangle],
+) {
+    let canvas_width = canvas.width();
+    let canvas_height = canvas.height();
+    let mut projected = Vec::new();
+    for vertex in vertices.iter() {
+        let translation = Vec3::new(-1.5, 0.0, 7.0);
+        let vertex_translated = *vertex + translation;
+        projected.push(project_vertex(
+            canvas_width,
+            canvas_height,
+            camera,
+            vertex_translated,
+        ));
+    }
+    for triangle in triangles.iter() {
+        render_triangle(canvas, triangle, &projected);
+    }
+}
+
+fn render_triangle(canvas: &mut Canvas, triangle: &Triangle, projected: &[Vec2]) {
+    draw_wireframe_triangle(
+        canvas,
+        projected[triangle.indices[0]],
+        projected[triangle.indices[1]],
+        projected[triangle.indices[2]],
+        triangle.color,
+    );
+}
+
+pub struct Model {
+    vertices: Vec<Vec3>,
+    triangles: Vec<Triangle>,
+}
+
+impl Model {
+    pub fn new(vertices: Vec<Vec3>, triangles: Vec<Triangle>) -> Self {
+        Self {
+            vertices,
+            triangles,
+        }
+    }
+}
+
+pub struct Instance<'a> {
+    model: &'a Model,
+    pub scale: Vec3,
+    pub rotation: Mat4,
+    pub translation: Vec3,
+    transform: Mat4,
+}
+
+impl<'a> Instance<'a> {
+    pub fn new(model: &'a Model, scale: Vec3, rotation: Mat4, translation: Vec3) -> Self {
+        // Right-handed system
+        let rotation = rotation.transpose();
+        Self {
+            model,
+            scale,
+            rotation,
+            translation,
+            transform: Mat4::from_translation(translation) * rotation * Mat4::from_scale(scale),
+        }
+    }
+}
+
+pub fn render_scene(canvas: &mut Canvas, camera: &Camera, scene: &[Instance]) {
+    for instance in scene.iter() {
+        render_instance(canvas, camera, instance);
+    }
+}
+
+pub fn render_instance(canvas: &mut Canvas, camera: &Camera, instance: &Instance) {
+    let canvas_width = canvas.width();
+    let canvas_height = canvas.height();
+    let mut projected = Vec::new();
+    let model = instance.model;
+    let camera_transform_mat =
+        camera.orientation.transpose() * Mat4::from_translation(camera.position * -1.0);
+    for vertex in model.vertices.iter() {
+        let vertex_transformed =
+            (camera_transform_mat * instance.transform).mul_vec4(vertex.extend(1.0));
+        projected.push(project_vertex(
+            canvas_width,
+            canvas_height,
+            camera,
+            vertex_transformed.truncate(),
+        ));
+    }
+    for triangle in model.triangles.iter() {
+        render_triangle(canvas, triangle, &projected);
+    }
 }

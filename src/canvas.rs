@@ -6,7 +6,7 @@ use std::ops::{Div, Mul, RangeInclusive};
 pub struct Canvas {
     width: u32,
     height: u32,
-    image: RgbImage,
+    pub image: RgbImage,
 }
 
 impl Canvas {
