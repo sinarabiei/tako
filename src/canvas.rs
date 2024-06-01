@@ -14,7 +14,8 @@ impl Canvas {
         Self {
             width,
             height,
-            image: RgbImage::new(width, height),
+            // image: RgbImage::new(width, height),
+            image: RgbImage::new(width + 2, height + 2),
         }
     }
 
@@ -28,10 +29,20 @@ impl Canvas {
 
     /// Converts canvas to screen coordinate automatically.
     pub fn put_pixel(&mut self, x: i32, y: i32, color: Color) {
-        if x < *self.x_range().start()
-            || x > *self.x_range().end()
-            || y < *self.y_range().start()
-            || y > *self.y_range().end()
+        // if x < *self.x_range().start()
+        //     || x > *self.x_range().end()
+        //     || y < *self.y_range().start()
+        //     || y > *self.y_range().end()
+        // {
+        //     eprintln!("index out of bound");
+        // } else {
+        //     let (screen_x, screen_y) = self.to_screen(x, y);
+        //     self.image.put_pixel(screen_x, screen_y, color.into());
+        // }
+        if x < *self.x_range().start() - 1
+            || x > *self.x_range().end() + 1
+            || y < *self.y_range().start() - 1
+            || y > *self.y_range().end() + 1
         {
             eprintln!("index out of bound");
         } else {

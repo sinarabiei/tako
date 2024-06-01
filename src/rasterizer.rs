@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{canvas::Canvas, color::Color};
 use glam::{Mat4, Vec2, Vec3};
 
@@ -176,10 +178,11 @@ pub struct Camera {
     pub width: f32,
     pub height: f32,
     pub d: f32,
+    pub planes: [Plane; 5],
 }
 
 impl Camera {
-    pub fn new(position: Vec3, orientation: Mat4) -> Self {
+    pub fn new(position: Vec3, orientation: Mat4, planes: [Plane; 5]) -> Self {
         // Right-handed system
         let orientation = orientation.transpose();
         Self {
@@ -188,6 +191,7 @@ impl Camera {
             width: 1.0,
             height: 1.0,
             d: 1.0,
+            planes,
         }
     }
 }
@@ -220,6 +224,7 @@ pub fn project_vertex(
     )
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Triangle {
     pub indices: [usize; 3],
     pub color: Color,
@@ -301,30 +306,186 @@ impl<'a> Instance<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct Plane {
+    normal: Vec3, // normalized, unit length, points to "inside" clipping volume
+    d: f32,       // signed distance from the origin to the plane
+}
+
+impl Plane {
+    pub fn new(normal: Vec3, d: f32) -> Self {
+        Self { normal, d: -d }
+    }
+}
+
+fn signed_distance(plane: Plane, point: Vec3) -> f32 {
+    plane.normal.dot(point) + plane.d
+}
+
+fn bounding_sphere(vertices: &[Vec3]) -> (Vec3, f32) {
+    let center: Vec3 = vertices.iter().sum::<Vec3>() / vertices.len() as f32;
+    let mut radius = 0.0;
+    for &vertex in vertices {
+        let distance = (vertex - center).length();
+        if distance > radius {
+            radius = distance;
+        }
+    }
+    (center, radius)
+}
+
+fn segment_plane_intersection(plane: Plane, a: Vec3, b: Vec3) -> Vec3 {
+    let ab = b - a;
+    let t = (-plane.d - plane.normal.dot(a)) / plane.normal.dot(ab);
+    a + t * ab
+}
+
+fn clip_triangle(
+    vertices: &mut Vec<Vec3>,
+    triangles: &mut Vec<Triangle>,
+    plane: Plane,
+    triangle: Triangle,
+) {
+    let vertices_indices = [
+        (vertices[triangle.indices[0]], triangle.indices[0]),
+        (vertices[triangle.indices[1]], triangle.indices[1]),
+        (vertices[triangle.indices[2]], triangle.indices[2]),
+    ];
+    let mut front_vertices_count = 0;
+    let mut front_vertices_indices = Vec::new();
+    let mut behind_vertices_indices = Vec::new();
+    for (vertex, index) in vertices_indices {
+        let signed_dist = signed_distance(plane, vertex);
+        if signed_dist >= 0.0 {
+            front_vertices_indices.push((vertex, index));
+            front_vertices_count += 1;
+        } else {
+            behind_vertices_indices.push((vertex, index));
+        }
+    }
+    if front_vertices_count == 3 {
+        triangles.push(triangle);
+    } else if front_vertices_count == 2 {
+        let (c, _) = behind_vertices_indices[0];
+        let (a, a_index) = front_vertices_indices[0];
+        let (b, b_index) = front_vertices_indices[1];
+        let a_prime = segment_plane_intersection(plane, a, c);
+        vertices.push(a_prime);
+        let a_prime_index = vertices.len() - 1;
+        let b_prime = segment_plane_intersection(plane, b, c);
+        vertices.push(b_prime);
+        let b_prime_index = vertices.len() - 1;
+        triangles.push(Triangle::new(
+            [a_index, b_index, a_prime_index],
+            triangle.color,
+        ));
+        triangles.push(Triangle::new(
+            [a_prime_index, b_index, b_prime_index],
+            triangle.color,
+        ));
+    } else if front_vertices_count == 1 {
+        let (a, a_index) = front_vertices_indices[0];
+        let (b, _) = behind_vertices_indices[0];
+        let (c, _) = behind_vertices_indices[1];
+        let b_prime = segment_plane_intersection(plane, a, b);
+        vertices.push(b_prime);
+        let b_prime_index = vertices.len() - 1;
+        let c_prime = segment_plane_intersection(plane, a, c);
+        vertices.push(c_prime);
+        let c_prime_index = vertices.len() - 1;
+        triangles.push(Triangle::new(
+            [a_index, b_prime_index, c_prime_index],
+            triangle.color,
+        ));
+    }
+}
+
+fn clip_triangles_against_plane(
+    vertices: &mut Vec<Vec3>,
+    plane: Plane,
+    triangles: &[Triangle],
+) -> Vec<Triangle> {
+    let mut clipped_triangles = Vec::new();
+    for &triangle in triangles.iter() {
+        clip_triangle(vertices, &mut clipped_triangles, plane, triangle)
+    }
+    clipped_triangles
+}
+
+fn clip_instance_against_plane(
+    vertices: &mut Vec<Vec3>,
+    triangles: &[Triangle],
+    plane: Plane,
+) -> Option<Vec<Triangle>> {
+    let mut indices = HashSet::new();
+    for &triangle in triangles.iter() {
+        indices.insert(triangle.indices[0]);
+        indices.insert(triangle.indices[1]);
+        indices.insert(triangle.indices[2]);
+    }
+    let mut vertices_sphere = Vec::new();
+    for &index in indices.iter() {
+        vertices_sphere.push(vertices[index]);
+    }
+    let (center, radius) = bounding_sphere(&vertices_sphere);
+    let distance = signed_distance(plane, center);
+    if distance > radius {
+        Some(triangles.to_vec())
+    } else if distance < -radius {
+        None
+    } else {
+        let clipped_triangles = clip_triangles_against_plane(vertices, plane, triangles);
+        Some(clipped_triangles)
+    }
+}
+
+// `d` is signed distance from the origin to the plane
+// for any point `n.p + d` is the signed distance from plane to the point
+// `n` is the normal of the plane such that it points "inside" the clipping volume
+// camera- width: 1, height: 1, d: sqrt(5) / 2, fov: 90 degrees
+
 pub fn render_scene(canvas: &mut Canvas, camera: &Camera, scene: &[Instance]) {
     for instance in scene.iter() {
         render_instance(canvas, camera, instance);
     }
 }
 
-pub fn render_instance(canvas: &mut Canvas, camera: &Camera, instance: &Instance) {
+fn render_instance(canvas: &mut Canvas, camera: &Camera, instance: &Instance) {
     let canvas_width = canvas.width();
     let canvas_height = canvas.height();
-    let mut projected = Vec::new();
+    let mut vertices_camera_space = Vec::with_capacity(instance.model.vertices.len());
     let model = instance.model;
     let camera_transform_mat =
         camera.orientation.transpose() * Mat4::from_translation(camera.position * -1.0);
     for vertex in model.vertices.iter() {
-        let vertex_transformed =
+        let vertex_camera_space =
             (camera_transform_mat * instance.transform).mul_vec4(vertex.extend(1.0));
-        projected.push(project_vertex(
-            canvas_width,
-            canvas_height,
-            camera,
-            vertex_transformed.truncate(),
-        ));
+        vertices_camera_space.push(vertex_camera_space.truncate());
     }
-    for triangle in model.triangles.iter() {
-        render_triangle(canvas, triangle, &projected);
+    if let Some(clipped_triangles) =
+        clip_instance(&mut vertices_camera_space, &model.triangles, &camera.planes)
+    {
+        let mut projected_vertices = Vec::with_capacity(vertices_camera_space.len());
+        for &vertex in vertices_camera_space.iter() {
+            projected_vertices.push(project_vertex(canvas_width, canvas_height, camera, vertex));
+        }
+        for triangle in clipped_triangles.iter() {
+            render_triangle(canvas, triangle, &projected_vertices);
+        }
     }
+}
+
+fn clip_instance(
+    vertices: &mut Vec<Vec3>,
+    triangles: &[Triangle],
+    planes: &[Plane],
+) -> Option<Vec<Triangle>> {
+    let mut clipped_triangles = triangles.to_vec();
+    for &plane in planes {
+        match clip_instance_against_plane(vertices, &clipped_triangles, plane) {
+            None => return None,
+            Some(triangles) => clipped_triangles = triangles,
+        }
+    }
+    Some(clipped_triangles)
 }

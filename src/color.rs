@@ -1,7 +1,7 @@
 use image::Rgb;
 use std::ops::{Add, Mul};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Color {
     red: u8,
     green: u8,

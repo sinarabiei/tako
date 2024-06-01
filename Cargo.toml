@@ -16,5 +16,5 @@ opt-level = 1
 opt-level = 3
 
 [[example]]
-name = "describing_rendering_scene"
-path = "examples/describing_rendering_scene.rs"
+name = "clipping"
+path = "examples/clipping.rs"

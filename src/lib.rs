@@ -13,7 +13,7 @@ pub mod prelude {
     pub use crate::light::Light;
     pub use crate::rasterizer::{
         draw_filled_triangle, draw_line, draw_shaded_triangle, draw_wireframe_triangle,
-        render_object, render_scene, Instance, Model, Triangle, Vertex,
+        render_object, render_scene, Instance, Model, Plane, Triangle, Vertex,
     };
     pub use crate::scene::Scene;
     pub use crate::sphere::Sphere;
